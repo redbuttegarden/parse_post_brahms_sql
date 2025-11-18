@@ -16,7 +16,7 @@ config = configparser.ConfigParser()
 
 log_formatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
 root = logging.getLogger()
-root.setLevel(logging.INFO)
+root.setLevel(logging.DEBUG)
 
 fileHandler = logging.FileHandler("main.log")
 fileHandler.setFormatter(log_formatter)
@@ -88,7 +88,7 @@ def post_plant_collections(poster, plant_data_filepath, delimiter, encoding, las
                     processes.append(executor.submit(post_row, poster, row))
             else:
                 # Uncomment to also post records without last modified date
-                processes.append(executor.submit(post_row, poster, row))
+                #processes.append(executor.submit(post_row, poster, row))
                 pass
 
     for task in as_completed(processes):

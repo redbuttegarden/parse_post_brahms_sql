@@ -107,7 +107,8 @@ def get_column_mapping(row):
         'deer': row[34],  # str19
         'rabbit': row[35],  # str20
         'bee': row[36],  # str22
-        'highelevation': row[37]  # str23
+        'highelevation': row[37],  # str23
+        'arborist_rec': row[38]  # str42
     }
 
     return column_mapping
@@ -172,6 +173,7 @@ def brahms_row_to_payload(row):
             'rabbit_resist': True if column_mapping['rabbit'].lower() in ['yes', 'x'] else False,
             'bee_friend': True if column_mapping['bee'].lower() in ['yes', 'x'] else False,
             'high_elevation': True if column_mapping['highelevation'].lower() in ['yes', 'x'] else False,
+            'arborist_rec': True if column_mapping['arborist_rec'].lower() in ['yes', 'x'] else False,
         },
         'garden': {
             'area': column_mapping['gardenlocalityarea'],
