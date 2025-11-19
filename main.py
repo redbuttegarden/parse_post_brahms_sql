@@ -92,8 +92,11 @@ def post_plant_collections(poster, plant_data_filepath, delimiter, encoding, las
                 pass
 
     for task in as_completed(processes):
-        if task.result():
-            root.info(task.result())
+        try:
+            if task.result():
+                root.info(task.result())
+        except HTTPError as e:
+            root.error('Error in task: {e}')
 
 
 def post_image(poster, row):
