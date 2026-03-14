@@ -154,3 +154,7 @@ BRAHMSPHOTOS/
 
 # Config
 config.ini
+
+.vscode
+
+*.sqlite3
