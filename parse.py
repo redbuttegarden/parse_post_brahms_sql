@@ -67,7 +67,7 @@ def process_hardiness(hardiness_data):
 def get_column_mapping(row):
     """
     Assumes row structure:
-    familyname|vernacularfamilyname|genusname|speciesname|calcfullname|subspecies|variety|subvariety|forma|subforma|cultivar|vernacularname|habit|hardiness|waterregime|exposure|plantsize|colour|gardenlocalityarea|gardenlocalityname|gardenlocalitycode|plantid|latitude|longitude|commemorationcategory|commemorationperson|plantday|plantmonth|plantyear|notonline|lastmodifiedon|str05|str12|str18|str19|str20|str22|str23
+    familyname|vernacularfamilyname|genusname|speciesname|calcfullname|subspecies|variety|subvariety|forma|subforma|cultivar|vernacularname|habit|hardinesscode|waterregime|exposure|plantsize|colour|labelrangetext|gardenlocalityarea|gardenlocalityname|gardenlocalitycode|plantid|latitude|longitude|commemorationcategory|commemorationperson|plantday|plantmonth|plantyear|notonline|lastmodifiedon|str05|str12|str18|str19|str20|str22|str23|str42
     """
     column_mapping = {
         'familyname': row[0],
@@ -88,27 +88,28 @@ def get_column_mapping(row):
         'exposure': row[15],
         'plantsize': row[16],
         'colour': row[17],
-        'gardenlocalityarea': row[18],
-        'gardenlocalityname': row[19],
-        'gardenlocalitycode': row[20],
-        'plantid': row[21],
-        'latitude': row[22],
-        'longitude': row[23],
-        'commemorationcategory': row[24],
-        'commemorationperson': row[25],
-        'plantday': row[26],
-        'plantmonth': row[27],
-        'plantyear': row[28],
-        'notonline': row[29],
-        'lastmodified': row[30],
-        'bloomtime': row[31],
-        'utahnative': row[32],  # str12
-        'plantselect': row[33],  # str18
-        'deer': row[34],  # str19
-        'rabbit': row[35],  # str20
-        'bee': row[36],  # str22
-        'highelevation': row[37],  # str23
-        'arborist_rec': row[38]  # str42
+        'labelrangetext': row[18],
+        'gardenlocalityarea': row[19],
+        'gardenlocalityname': row[20],
+        'gardenlocalitycode': row[21],
+        'plantid': row[22],
+        'latitude': row[23],
+        'longitude': row[24],
+        'commemorationcategory': row[25],
+        'commemorationperson': row[26],
+        'plantday': row[27],
+        'plantmonth': row[28],
+        'plantyear': row[29],
+        'notonline': row[30],
+        'lastmodified': row[31],
+        'bloomtime': row[32],
+        'utahnative': row[33],  # str12
+        'plantselect': row[34],  # str18
+        'deer': row[35],  # str19
+        'rabbit': row[36],  # str20
+        'bee': row[37],  # str22
+        'highelevation': row[38],  # str23
+        'arborist_rec': row[39]  # str42
     }
 
     return column_mapping
@@ -167,6 +168,7 @@ def brahms_row_to_payload(row):
             'bloom_time': bloom_times,
             'plant_size': column_mapping['plantsize'],
             'flower_color': column_mapping['colour'],
+            'label_range_text': column_mapping['labelrangetext'],
             'utah_native': True if column_mapping['utahnative'].lower() in ['yes', 'x', 'utah native'] else False,
             'plant_select': True if column_mapping['plantselect'].lower() in ['yes', 'x'] else False,
             'deer_resist': True if column_mapping['deer'].lower() in ['yes', 'x'] else False,

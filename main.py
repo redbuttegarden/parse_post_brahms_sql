@@ -63,7 +63,7 @@ def post_row(poster, row):
 
 def post_plant_collections(poster, plant_data_filepath, delimiter, encoding, last_run):
     """
-    Assumes last modified date is 31st element of row data
+    Assumes last modified date is 32nd element of row data
     """
     sql_reader = BRAHMSExportReader(file_path=plant_data_filepath, encoding=encoding, delimiter=delimiter)
 
@@ -72,18 +72,18 @@ def post_plant_collections(poster, plant_data_filepath, delimiter, encoding, las
         sql_rows = iter(sql_reader.get_rows())
         next(sql_rows)  # Skip header row
         for row in sql_rows:
-            if row[30]:  # last modified data
+            if len(row) > 31 and row[31]:  # safely check if index exists AND is not empty: last modified data
                 try:
                     # Most are in ISO Format
-                    last_modified = datetime.fromisoformat(row[30][:-6])
+                    last_modified = datetime.fromisoformat(row[31][:-6])
                 except ValueError:
                     # Others look like 3/1/2021  1:07:38 PM
-                    last_modified = datetime.strptime(row[30], '%m/%d/%Y %I:%M:%S %p')
+                    last_modified = datetime.strptime(row[31], '%m/%d/%Y %I:%M:%S %p')
 
                 if last_modified > last_run:
                     processes.append(executor.submit(post_row, poster, row))
                 else:
-                    root.warning(f'Row with plant ID {row[21]} has not been modified ({last_modified}) since last run ({last_run}).')
+                    root.warning(f'Row with plant ID {row[22]} has not been modified ({last_modified}) since last run ({last_run}).')
                     # Uncomment to also post these records anyway
                     processes.append(executor.submit(post_row, poster, row))
             else:
@@ -96,7 +96,7 @@ def post_plant_collections(poster, plant_data_filepath, delimiter, encoding, las
             if task.result():
                 root.info(task.result())
         except HTTPError as e:
-            root.error('Error in task: {e}')
+            root.error(f'Error in task: {e}')
 
 
 def post_image(poster, row):
