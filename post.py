@@ -1,7 +1,7 @@
 import logging
 import requests
 import sys
-from urllib.parse import urlunsplit
+from urllib.parse import quote, urlunsplit
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -86,7 +86,16 @@ class RBGAPIPoster:
     def post_species_image(self, pk, file_path, copyright_info):
         url = urlunsplit(
             (self.scheme, self.netloc, f'/plants/api/species/{pk}/set-image/', '', ''))
+        return self._post_image(url, f'Species {pk}', file_path, copyright_info)
 
+    def post_plant_image(self, plant_id, file_path, copyright_info):
+        """Attach an image to one collection, identified by its exact plant ID."""
+        encoded_plant_id = quote(str(plant_id), safe='')
+        url = urlunsplit(
+            (self.scheme, self.netloc, f'/plants/api/plants/{encoded_plant_id}/set-image/', '', ''))
+        return self._post_image(url, f'Plant {plant_id}', file_path, copyright_info)
+
+    def _post_image(self, url, target, file_path, copyright_info):
         try:
             with open(file_path, 'rb') as f:
                 try:
@@ -96,6 +105,6 @@ class RBGAPIPoster:
                     return r
                 except OSError as e:
                     logger.error(
-                        f'[Species {pk}] Error ({e}) posting: {file_path}')
+                        f'[{target}] Error ({e}) posting: {file_path}')
         except FileNotFoundError:
-            logger.error(f'[Species {pk}] Unable to find file: {file_path}')
+            logger.error(f'[{target}] Unable to find file: {file_path}')

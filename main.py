@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests import HTTPError
 
 from parse import BRAHMSExportReader, brahms_row_to_payload, construct_img_filepath, extract_copyright_info, \
-    extract_species_info
+    extract_species_query, parse_last_modified
 from post import RBGAPIPoster
 
 config = configparser.ConfigParser()
@@ -62,34 +62,26 @@ def post_row(poster, row):
 
 
 def post_plant_collections(poster, plant_data_filepath, delimiter, encoding, last_run):
-    """
-    Assumes last modified date is 32nd element of row data
-    """
+    """Post header-mapped collection rows reconstructed from the BRAHMS export."""
     sql_reader = BRAHMSExportReader(file_path=plant_data_filepath, encoding=encoding, delimiter=delimiter)
 
     processes = []
     with ThreadPoolExecutor(max_workers=4) as executor:
-        sql_rows = iter(sql_reader.get_rows())
-        next(sql_rows)  # Skip header row
-        for row in sql_rows:
-            if len(row) > 31 and row[31]:  # safely check if index exists AND is not empty: last modified data
-                try:
-                    # Most are in ISO Format
-                    last_modified = datetime.fromisoformat(row[31][:-6])
-                except ValueError:
-                    # Others look like 3/1/2021  1:07:38 PM
-                    last_modified = datetime.strptime(row[31], '%m/%d/%Y %I:%M:%S %p')
-
-                if last_modified > last_run:
-                    processes.append(executor.submit(post_row, poster, row))
-                else:
-                    root.warning(f'Row with plant ID {row[22]} has not been modified ({last_modified}) since last run ({last_run}).')
-                    # Uncomment to also post these records anyway
-                    processes.append(executor.submit(post_row, poster, row))
-            else:
-                # Uncomment to also post records without last modified date
-                #processes.append(executor.submit(post_row, poster, row))
-                pass
+        for row in sql_reader.get_collection_rows():
+            last_modified_value = row.get('lastmodifiedon', '')
+            if not last_modified_value:
+                root.warning('Skipping plant ID %s because it has no last-modified value.',
+                             row.get('plantid', '<missing>'))
+                continue
+            last_modified = parse_last_modified(last_modified_value)
+            if last_modified is None:
+                root.error('Skipping plant ID %s due to invalid last-modified value: %r',
+                           row.get('plantid', '<missing>'), last_modified_value)
+                continue
+            if last_modified and last_modified <= last_run:
+                root.warning('Row with plant ID %s has not been modified (%s) since last run (%s).',
+                             row.get('plantid', '<missing>'), last_modified, last_run)
+            processes.append(executor.submit(post_row, poster, row))
 
     for task in as_completed(processes):
         try:
@@ -102,10 +94,24 @@ def post_plant_collections(poster, plant_data_filepath, delimiter, encoding, las
 def post_image(poster, row):
     root.info(f"\nAttempting to post image row: {row}\n")
 
-    img_filepath = construct_img_filepath(row)
-    species_image_payload = extract_species_info(row)
+    try:
+        img_filepath = construct_img_filepath(row)
+    except ValueError as error:
+        root.error('Skipping image %r: %s', row.get('imagefile', '<missing>'), error)
+        return
     copyright_info = extract_copyright_info(row)
-    root.debug(f"Species query returned {species_image_payload} using {row}")
+    plant_id = row['plantid'].strip()
+    if plant_id:
+        resp = poster.post_plant_image(plant_id, img_filepath, copyright_info)
+        if resp and resp.status_code not in [200, 201]:
+            root.warning('Attempt to post %s for plant %s returned status code: %s',
+                         img_filepath, plant_id, resp.status_code)
+        return
+
+    species_image_payload = extract_species_query(row)
+    if species_image_payload is None:
+        return
+    root.debug('Searching for species with %s using image row %s', species_image_payload, row)
     resp = poster.get_species_from_query(species_image_payload)
     content = resp.json()
 
@@ -125,28 +131,23 @@ def post_image(poster, row):
 
 
 def post_image_to_species(poster, image_data_filepath, delimiter, encoding, last_run):
-    try:
-        image_location_reader = BRAHMSExportReader(file_path=image_data_filepath, delimiter=delimiter)
-        img_rows = image_location_reader.get_rows()
-        next(img_rows)  # Skip header row
-    except UnicodeDecodeError:
-        image_location_reader = BRAHMSExportReader(file_path=image_data_filepath, encoding=encoding, delimiter=delimiter)
-        img_rows = image_location_reader.get_rows()
-        next(img_rows)  # Skip header row
+    image_location_reader = BRAHMSExportReader(
+        file_path=image_data_filepath, encoding=encoding, delimiter=delimiter)
 
     processes = []
     with ThreadPoolExecutor(max_workers=4) as executor:
-        for row in img_rows:
-            if row[11]:  # last modified data
-                last_modified = datetime.fromisoformat(row[11][:-6])
-
-                if last_modified > last_run:
-                    processes.append(executor.submit(post_image, poster, row))
-                else:
-                    root.warning(f'Image with title "{row[0]}" has not been modified ({last_modified}) since last run ({last_run}).')
-                    continue
-            else:
-                processes.append(executor.submit(post_image, poster, row))
+        for row in image_location_reader.get_image_rows():
+            last_modified_value = row['lastmodifiedon']
+            last_modified = parse_last_modified(last_modified_value)
+            if last_modified is None:
+                root.error('Skipping image %r due to invalid last-modified value: %r',
+                           row['imagefile'], last_modified_value)
+                continue
+            if last_modified <= last_run:
+                root.warning('Image %r has not been modified (%s) since last run (%s).',
+                             row['imagefile'], last_modified, last_run)
+                continue
+            processes.append(executor.submit(post_image, poster, row))
 
     for task in as_completed(processes):
         if task.result():
